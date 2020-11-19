@@ -1,0 +1,146 @@
+1.get and locate G4
+
+./getG4.sh
+#  genome.fa which the chr id is simple;   $2 species_codinggene.pos
+# format of species_codinggene.pos
+#GeneID    chrID  strand start  end
+
+./quadparser2 $1 GC 3 4 1 7 $1"_G317"
+./quadparser2  -header $1 GC 3 4 1 7 $1"_G317header"
+./quadparser2  -c $1 GC 3 4 1 7 $1"_G317pos_beifen"
+perl ./combine_header_pos.pl $1"_G317header" $1"_G317pos_beifen" > $1"_G317pos"
+rm $1"_G317pos_beifen"
+#perl ./locate_G4pos_to_geneup2k.pl $1"_G317pos" $2 > $1"_G317up2k"
+echo `date`
+
+========================================
+./combine_header_pos.pl
+#!/usr/bin/perl -w
+use strict;
+open A,"$ARGV[0]"; # header file
+open B,"$ARGV[1]";  # pos file
+
+while (<A>){
+   chomp;
+   my @info=split; print "$info[0]\t";
+   my $tmp=<B>;
+   chomp($tmp);
+   $tmp=~s/\,/\t/;
+   print "$tmp\n";
+}
+close A;
+close B;
+
+========================================
+./locate_G4pos_to_geneup2k.pl
+#!/usr/bin/perl -w
+use strict;
+open A, "$ARGV[0]"; #G4pos file
+# KI270330.1      100     128
+open B, "$ARGV[1]"; # genome.pos file
+# ENSG00000279928 1       +       182393  184158
+my %a;
+while(<A>){
+   chomp;
+   my @info=split;
+   $a{$_}->[0]=$info[0];
+   $a{$_}->[1]=$info[1];
+   $a{$_}->[2]=$info[2];
+#print "$a{$_}->[0]****$a{$_}->[1]----$a{$_}->[2]+++++\n"; exit;
+}
+close A;
+while(<B>){
+ chomp;
+my @info=split;
+   if ($info[2] eq "+"){
+      my $key;
+      foreach $key (sort keys %a){
+         if ($a{$key}->[0] eq "$info[1]" && ($a{$key}->[1]<$info[3] && $a{$key}->[2]>=($info[4]-1999)  )){
+            print "$key\t$_\n";
+         }
+      }
+   }
+   if ($info[2] eq "-"){
+      my $key;
+      foreach $key (sort keys %a){
+        if ($a{$key}->[0] eq "$info[1]" && ($a{$key}->[1]<=($info[4]+1999) && $a{$key}->[2]>($info[3])  )){
+           print "$key\t$_\n";
+        }
+      }
+
+   }
+
+}
+
+================================================================================================================
+
+2. G4 and GC content chromosome distribution 
+./count_GC.pl
+use strict;
+my %hash;
+open FA, $ARGV[0];
+$/="\>";
+<FA>;
+while (<FA>) {
+	chomp;
+	my @info = split "\n";
+	my $head = shift @info;
+	my $seq = join "", @info;
+	$hash{$head} = $seq;
+	}
+close FA;
+print "Chr_name\twin_beg\twin_end\twin_ave_depth\twin_GC_content\n";
+open FB, $ARGV[1];
+$/="\n";
+while (<FB>) {
+        chomp;
+        my @info = split "\t";
+	my $seq_window = substr ($hash{$info[0]}, ($info[1]-1), ($info[2]-$info[1]+1));
+	my $gc=()= $seq_window =~ /C|G|c|g/gi;
+	my $at=()= $seq_window =~ /A|T|a|t/gi;
+	my $sum = $gc + $at;
+	my $GC_con = $gc / $sum;
+	print "$_\t$GC_con\n";
+}
+close FB;
+
+
+
+================================================================================================================
+3. random genome sequences
+
+./random.genome.pl
+use strict;
+use warnings;
+my $newbase;
+my $i=0;
+my $id;
+my $dna_length;
+open IN,"<$ARGV[0]";
+open OU,">>$ARGV[1]";
+$/="\n";
+while (<IN>){
+       chomp;
+       next if ($_=~/^$/);
+       my @info=split /\t/,$_;
+       $id=$info[0];
+      $dna_length=$info[1];
+      print OU "$id";
+      print OU "\n";     
+while($i<$dna_length){                
+      my(@nucleotides)=qw/A T G C/;
+      $newbase=$nucleotides[rand @nucleotides];
+      print OU "$newbase";
+      $i++;
+      $newbase="";                    
+  }
+$i=0;
+print OU "\n";
+}                               
+close IN;
+close OU;
+
+
+
+
+
